@@ -172,8 +172,13 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         #if mixup_fn is not None:
         #    samples, targets = mixup_fn(samples, targets)
         
+        #pdb.set_trace()
         with torch.cuda.amp.autocast():
-            outputs = model(samples)
+            if 'ResNet' in args.task:
+                outputs = model(samples[0], samples[1])
+            else:
+                outputs = model(samples)
+            '''
             if hasattr(model, 'module'):
                 loss_func = model.module.loss_func
             else:
@@ -183,8 +188,10 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                 loss = loss/3
             elif 'weighted_loss' in loss_func:
                 loss = 0.5*criterion(outputs[0], targets) + 0.2*criterion(outputs[1], targets) + 0.3*criterion(outputs[2], targets)
+            
             else:
-                loss = criterion(outputs, targets)
+            '''
+            loss = criterion(outputs, targets)
 
         loss_value = loss.item()
         
@@ -273,7 +280,11 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class, class_wis
         
         # compute output
         with torch.cuda.amp.autocast():
-            output = model(images)
+            if 'ResNet' in task:
+                output = model(images[0], images[1])
+            else:
+                output = model(images)
+            '''
             if hasattr(model, 'module'):
                 loss_func = model.module.loss_func
             else:
@@ -288,10 +299,14 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class, class_wis
                 loss = 0.5*criterion(output[0], target) + 0.2*criterion(output[1], target) + 0.3*criterion(output[2], target)
                 output = output[0]
             else:
-                loss = criterion(output, target)
+            '''
+            loss = criterion(output, target)
             
             all_targets.append(target.cpu().numpy().copy())
-            all_scores.append(torch.sigmoid(output).cpu().numpy().copy())
+            if 'ResNet' in task:
+                all_scores.append(output.cpu().numpy().copy())
+            else:
+                all_scores.append(torch.sigmoid(output).cpu().numpy().copy())
         metric_logger.update(loss=loss.item())   #中位数（平均数）
         
         #all_features.append(output.cpu().numpy().copy().reshape(output.shape[0],-1))
